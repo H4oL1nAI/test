@@ -177,3 +177,98 @@ class MineSweeper:
                     else:
                         pygame.draw.rect(screen, GRAY, rect)
                         pygame.draw.rect(screen, DARK_GRAY, rect, 1)
+
+        # 游戏结束后显示所有地雷
+        if self.game_over and not self.game_won:
+            for (x, y) in self.mines:
+                if not self.flagged[y][x]:
+                    rect = pygame.Rect(
+                        grid_offset_x + x * GRID_SIZE,
+                        grid_offset_y + y * GRID_SIZE,
+                        GRID_SIZE,
+                        GRID_SIZE
+                    )
+                    pygame.draw.rect(screen, RED, rect)
+                    pygame.draw.rect(screen, GRAY, rect, 1)
+                    pygame.draw.line(screen, BLACK, rect.topleft, rect.bottomright, 2)
+                    pygame.draw.line(screen, BLACK, rect.topright, rect.bottomleft, 2)
+
+        return grid_offset_x, grid_offset_y
+
+    def draw_ui(self):
+        # 绘制标题
+        title = font.render("扫雷游戏", True, BLACK)
+        screen.blit(title, (SCREEN_WIDTH // 2 - title.get_width() // 2, 20))
+
+        # 绘制剩余地雷数
+        flags_left = MINES_COUNT - sum(row.count(True) for row in self.flagged)
+        mines_text = font.render(f"剩余地雷: {flags_left}", True, BLACK)
+        screen.blit(mines_text, (50, 20))
+
+        # 绘制计时器
+        if not self.game_over and not self.first_click:
+            self.elapsed_time = (pygame.time.get_ticks() - self.start_time) // 1000
+        time_text = font.render(f"时间: {self.elapsed_time}", True, BLACK)
+        screen.blit(time_text, (SCREEN_WIDTH - 150, 20))
+
+        # 游戏结束消息
+        if self.game_over:
+            if self.game_won:
+                msg = font.render("恭喜你，获胜了！", True, GREEN)
+            else:
+                msg = font.render("游戏结束，触雷了！", True, RED)
+            msg_rect = msg.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 50))
+            screen.blit(msg, msg_rect)
+
+            # 重新开始按钮
+            restart_button = pygame.Rect(SCREEN_WIDTH // 2 - 100, SCREEN_HEIGHT // 2 + 20, 200, 50)
+            pygame.draw.rect(screen, BLUE, restart_button)
+            pygame.draw.rect(screen, WHITE, restart_button, 2)
+            restart_text = font.render("重新开始", True, WHITE)
+            restart_text_rect = restart_text.get_rect(center=restart_button.center)
+            screen.blit(restart_text, restart_text_rect)
+            return restart_button
+
+        return None
+
+    def handle_events(self, grid_offset_x, grid_offset_y):
+        restart_button = None
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+                sys.exit()
+            elif event.type == MOUSEBUTTONDOWN:
+                x, y = event.pos
+                # 检查是否点击了重新开始按钮
+                if self.game_over:
+                    restart_button = self.draw_ui()
+                    if restart_button and restart_button.collidepoint(x, y):
+                        self.reset_game()
+                        return
+                else:
+                    # 检查是否点击了网格
+                    grid_x = (x - grid_offset_x) // GRID_SIZE
+                    grid_y = (y - grid_offset_y) // GRID_SIZE
+                    if 0 <= grid_x < GRID_WIDTH and 0 <= grid_y < GRID_HEIGHT:
+                        if self.first_click:
+                            # 第一次点击，放置地雷并开始计时
+                            self.place_mines(grid_x, grid_y)
+                            self.first_click = False
+                            self.start_time = pygame.time.get_ticks()
+                        if event.button == 1:  # 左键点击
+                            self.reveal_cell(grid_x, grid_y)
+                        elif event.button == 3:  # 右键点击
+                            self.toggle_flag(grid_x, grid_y)
+
+    def run(self):
+        while True:
+            screen.fill(WHITE)
+            grid_offset_x, grid_offset_y = self.draw_grid()
+            self.draw_ui()
+            self.handle_events(grid_offset_x, grid_offset_y)
+            pygame.display.flip()
+            self.clock.tick(60)
+
+if __name__ == "__main__":
+    game = MineSweeper()
+    game.run()
