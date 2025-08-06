@@ -89,3 +89,91 @@ class MineSweeper:
                             if 0 <= nx < GRID_WIDTH and 0 <= ny < GRID_HEIGHT and (nx, ny) in self.mines:
                                 count += 1
                     self.grid[y][x] = count
+
+    def reveal_cell(self, x, y):
+        if self.revealed[y][x] or self.flagged[y][x] or self.game_over:
+            return
+
+        self.revealed[y][x] = True
+
+        # 如果是地雷，游戏结束
+        if (x, y) in self.mines:
+            self.game_over = True
+            return
+
+        # 如果是空格子（周围没有地雷），递归揭示周围的格子
+        if self.grid[y][x] == 0:
+            for dx in [-1, 0, 1]:
+                for dy in [-1, 0, 1]:
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < GRID_WIDTH and 0 <= ny < GRID_HEIGHT:
+                        self.reveal_cell(nx, ny)
+
+        # 检查是否获胜
+        self.check_win()
+
+    def toggle_flag(self, x, y):
+        if self.revealed[y][x] or self.game_over:
+            return
+        self.flagged[y][x] = not self.flagged[y][x]
+        self.check_win()
+
+    def check_win(self):
+        # 检查是否所有非地雷格子都被揭示
+        revealed_count = 0
+        for y in range(GRID_HEIGHT):
+            for x in range(GRID_WIDTH):
+                if self.revealed[y][x] and (x, y) not in self.mines:
+                    revealed_count += 1
+        if revealed_count == GRID_WIDTH * GRID_HEIGHT - MINES_COUNT:
+            self.game_over = True
+            self.game_won = True
+
+    def draw_grid(self):
+        # 计算网格偏移量，使网格居中
+        grid_offset_x = (SCREEN_WIDTH - GRID_WIDTH * GRID_SIZE) // 2
+        grid_offset_y = (SCREEN_HEIGHT - GRID_HEIGHT * GRID_SIZE) // 2
+
+        # 绘制网格
+        for y in range(GRID_HEIGHT):
+            for x in range(GRID_WIDTH):
+                rect = pygame.Rect(
+                    grid_offset_x + x * GRID_SIZE,
+                    grid_offset_y + y * GRID_SIZE,
+                    GRID_SIZE,
+                    GRID_SIZE
+                )
+
+                if self.revealed[y][x]:
+                    pygame.draw.rect(screen, LIGHT_GRAY, rect)
+                    pygame.draw.rect(screen, GRAY, rect, 1)
+
+                    if (x, y) in self.mines:
+                        # 绘制地雷
+                        pygame.draw.circle(screen, BLACK, rect.center, GRID_SIZE // 4)
+                    elif self.grid[y][x] > 0:
+                        # 绘制数字
+                        color_map = [
+                            None, BLUE, GREEN, RED, (128, 0, 128), (139, 0, 0), (64, 224, 208), BLACK, GRAY
+                        ]
+                        text = small_font.render(str(self.grid[y][x]), True, color_map[self.grid[y][x]])
+                        text_rect = text.get_rect(center=rect.center)
+                        screen.blit(text, text_rect)
+                else:
+                    if self.flagged[y][x]:
+                        pygame.draw.rect(screen, YELLOW, rect)
+                        pygame.draw.rect(screen, GRAY, rect, 1)
+                        # 绘制旗帜
+                        pygame.draw.polygon(
+                            screen, RED,
+                            [
+                                (rect.left + GRID_SIZE // 4, rect.top + GRID_SIZE // 4),
+                                (rect.right - GRID_SIZE // 4, rect.top + GRID_SIZE // 2),
+                                (rect.left + GRID_SIZE // 4, rect.bottom - GRID_SIZE // 4)
+                            ]
+                        )
+                        pygame.draw.line(screen, BLACK, (rect.left + GRID_SIZE // 4, rect.top + GRID_SIZE // 4),
+                                        (rect.left + GRID_SIZE // 4, rect.bottom - GRID_SIZE // 4), 2)
+                    else:
+                        pygame.draw.rect(screen, GRAY, rect)
+                        pygame.draw.rect(screen, DARK_GRAY, rect, 1)
